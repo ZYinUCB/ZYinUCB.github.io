@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>CMU15-445 lab02(Part 1)</title>
+    <url>/2022/09/02/lab2/</url>
+    <content><![CDATA[<!-- <style>
+.table-wrapper {
+    display: block;
+    overflow-x: auto;
+}
+</style> -->
+]]></content>
+  </entry>
+  <entry>
+    <title>CMU15-445 lab01</title>
+    <url>/2022/08/29/lab1/</url>
+    <content><![CDATA[<style>
+@import url(https://fonts.googleapis.com/css?family=Roboto);
+blockquote {
+ /* color:#888; */
+ background-color: #f9f2f4;
+ border-left: 0.2em solid #FA7298;
+ padding: 1em 0.7em 1em 0.7em;
+ position: relative;
+ /* font-family: 'Roboto', sans-serif; */
+ line-height: 150%;
+ border-radius: 3px;
+ /* text-indent: 35px; */
+}
+</style>
+<h1 id="1-Task1-LRU-REPLACEMENT-POLICY"><a href="#1-Task1-LRU-REPLACEMENT-POLICY" class="headerlink" title="1. Task1 LRU REPLACEMENT POLICY"></a>1. Task1 LRU REPLACEMENT POLICY</h1><h2 id="0-任务描述"><a href="#0-任务描述" class="headerlink" title="0. 任务描述"></a>0. 任务描述</h2><p>这个任务要求我们实现在课堂上所描述的LRU算法。</p>
+<p>你需要实现下面这些函数。请确保他们都是线程安全的。</p>
+<ul>
+<li><p><code>Victim(T*)</code> :  Remove the object that was accessed the least recently compared to all the elements being tracked by the Replacer, store its contents in the output parameter and return True. If the Replacer is empty return False.</p>
+</li>
+<li><p><code>Pin(T)</code> :This method should be called after a page is pinned to a frame in the BufferPoolManager. It should remove the frame containing the pinned page from the LRUReplacer.</p>
+</li>
+<li><p><code>Unpin(T)</code> : This method should be called when the pin_count of a page becomes 0. This method should add the frame containing the unpinned page to the LRUReplacer.</p>
+</li>
+<li><p><code>Size()</code> : This method returns the number of frames that are currently in the LRUReplacer.</p>
+</li>
+</ul>
+<span id="more"></span>
+
+<h2 id="1-LRU实现"><a href="#1-LRU实现" class="headerlink" title="1. LRU实现"></a>1. LRU实现</h2><h3 id="1-1-基本数据结构"><a href="#1-1-基本数据结构" class="headerlink" title="1.1 基本数据结构"></a>1.1 基本数据结构</h3><blockquote>
+LRU 算法的设计原则是：如果一个数据在最近一段时间没有被访问到，那么在将来它被访问的可能性也很小。也就是说，当限定的空间已存满数据时，应当把最久没有被访问到的数据淘汰。
+</blockquote>
+
+
+<ul>
+<li>考虑到线程安全及并发错误， 需要在函数中加入<code>latch</code>锁。</li>
+<li><code>capacity</code>表示replacer的容量。</li>
+<li><code>lru_list</code>为双向链表，记录replacer的frame。</li>
+<li>使用<code>lruMap</code>哈希表+双链表的结构，哈希表存储frame id以及指向<code>lru_list</code>内frame的begin指针，让插入和删除复杂度均为O(1)。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="keyword">private</span>:</span><br><span class="line">  std::mutex latch;  <span class="comment">// thread safety</span></span><br><span class="line">  <span class="type">size_t</span> capacity;   <span class="comment">// max number of pages LRUReplacer can handle</span></span><br><span class="line">  std::list&lt;<span class="type">frame_id_t</span>&gt; lru_list;</span><br><span class="line">  std::unordered_map&lt;<span class="type">frame_id_t</span>, std::list&lt;<span class="type">frame_id_t</span>&gt;::iterator&gt; lruMap;</span><br></pre></td></tr></table></figure>
+<h3 id="1-2-Victim-函数实现"><a href="#1-2-Victim-函数实现" class="headerlink" title="1.2 Victim 函数实现"></a>1.2 Victim 函数实现</h3><blockquote>
+注意这里必须要加锁，以防止并发错误。
+</blockquote>
+
+<ul>
+<li>使用<code>std::scoped_lock</code>c++17中的scope锁，它能够避免死锁发生，其构造函数能够自动进行上锁操作，析构函数会对互斥量进行解锁操作，保证线程安全。</li>
+<li>如果replacer为空，意味着找不到牺牲页，返回<code>false</code>。</li>
+<li>如果replacer非空，删除最久未使用的页面。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">bool</span> <span class="title">LRUReplacer::Victim</span><span class="params">(<span class="type">frame_id_t</span> *frame_id)</span> </span>&#123;</span><br><span class="line">  std::scoped_lock lock&#123;latch&#125;;</span><br><span class="line">  <span class="comment">// If empty, it means that no victim can be found.</span></span><br><span class="line">  <span class="keyword">if</span> (lruMap.<span class="built_in">empty</span>()) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// Find the last frame and remove it.</span></span><br><span class="line">  *frame_id = lru_list.<span class="built_in">back</span>();</span><br><span class="line">  lruMap.<span class="built_in">erase</span>(*frame_id);</span><br><span class="line">  lru_list.<span class="built_in">pop_back</span>();</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="1-3-pin-函数实现"><a href="#1-3-pin-函数实现" class="headerlink" title="1.3 pin 函数实现"></a>1.3 pin 函数实现</h3><blockquote>
+注意这里必须要加锁，以防止并发错误。
+</blockquote>
+
+<ul>
+<li>pin的作用是标记该页（如正在使用），防止并发错误。</li>
+<li>如果找到该frame, 将其从replacer中删除。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">LRUReplacer::Pin</span><span class="params">(<span class="type">frame_id_t</span> frame_id)</span> </span>&#123;</span><br><span class="line">  std::scoped_lock lock&#123;latch&#125;;</span><br><span class="line">  <span class="comment">// Find the frame and pin it.</span></span><br><span class="line">  <span class="keyword">auto</span> it = lruMap.<span class="built_in">find</span>(frame_id);</span><br><span class="line">  <span class="keyword">if</span> (it != lruMap.<span class="built_in">end</span>()) &#123;</span><br><span class="line">    lru_list.<span class="built_in">erase</span>(lruMap[frame_id]);</span><br><span class="line">    lruMap.<span class="built_in">erase</span>(frame_id);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-4-unpin-函数实现"><a href="#1-4-unpin-函数实现" class="headerlink" title="1.4 unpin 函数实现"></a>1.4 unpin 函数实现</h3><blockquote>
+注意这里必须要加锁，以防止并发错误。
+</blockquote>
+
+<ul>
+<li>unpin的作用是取消标记，将该页加入replacer中。</li>
+<li>如果在replacer中找不到该frame，且replacer不满，加入该frame。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">LRUReplacer::Unpin</span><span class="params">(<span class="type">frame_id_t</span> frame_id)</span> </span>&#123;</span><br><span class="line">  std::scoped_lock lock&#123;latch&#125;;</span><br><span class="line">  <span class="comment">// If exist, do nothing.</span></span><br><span class="line">  <span class="keyword">auto</span> it = lruMap.<span class="built_in">find</span>(frame_id);</span><br><span class="line">  <span class="keyword">if</span> (it != lruMap.<span class="built_in">end</span>()) &#123;</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// if list size &gt;= capacity, do nothing</span></span><br><span class="line">  <span class="keyword">if</span> (<span class="built_in">Size</span>() &gt;= capacity) &#123;</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// insert</span></span><br><span class="line">  lru_list.<span class="built_in">push_front</span>(frame_id);</span><br><span class="line">  lruMap.<span class="built_in">emplace</span>(frame_id, lru_list.<span class="built_in">begin</span>());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-5-Test"><a href="#1-5-Test" class="headerlink" title="1.5 Test"></a>1.5 Test</h3><ul>
+<li><strong>检测语法及格式</strong></li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ <span class="built_in">cd</span> build</span><br><span class="line">$ make format</span><br><span class="line">$ make check-lint</span><br><span class="line">$ make check-clang-tidy</span><br><span class="line">$ make lru_replacer_test</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>测试</strong></li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ ./test/lru_replacer_test</span><br><span class="line">Running main() from gmock_main.cc</span><br><span class="line">[==========] Running 1 <span class="built_in">test</span> from 1 <span class="built_in">test</span> suite.</span><br><span class="line">[----------] Global <span class="built_in">test</span> environment set-up.</span><br><span class="line">[----------] 1 <span class="built_in">test</span> from LRUReplacerTest</span><br><span class="line">[ RUN      ] LRUReplacerTest.SampleTest</span><br><span class="line">[       OK ] LRUReplacerTest.SampleTest (0 ms)</span><br><span class="line">[----------] 1 <span class="built_in">test</span> from LRUReplacerTest (0 ms total)</span><br><span class="line"></span><br><span class="line">[----------] Global <span class="built_in">test</span> environment tear-down</span><br><span class="line">[==========] 1 <span class="built_in">test</span> from 1 <span class="built_in">test</span> suite ran. (0 ms total)</span><br><span class="line">[  PASSED  ] 1 <span class="built_in">test</span>.</span><br></pre></td></tr></table></figure>
+<h1 id="2-Task2-BUFFER-POOL-MANAGER"><a href="#2-Task2-BUFFER-POOL-MANAGER" class="headerlink" title="2. Task2 BUFFER POOL MANAGER"></a>2. Task2 BUFFER POOL MANAGER</h1><h2 id="0-任务描述-1"><a href="#0-任务描述-1" class="headerlink" title="0. 任务描述"></a>0. 任务描述</h2><p>接下来，您需要在系统中实现缓冲池管理器<code>(BufferPoolManager)</code>。<code>BufferPoolManager</code>负责从<code>DiskManager</code>获取数据库页面并将它们存储在内存中。<code>BufferPoolManage</code>还可以在有要求它这样做时，或者当它需要驱逐一个页以便为新页腾出空间时，将脏页写入磁盘。为了确保您的实现能够正确地与系统的其余部分一起工作，我们将为您提供一些已经填写好的功能。您也不需要实现实际读写数据到磁盘的代码(在我们的实现中称为<code>DiskManager</code>)。我们将为您提供这一功能。</p>
+<p>系统中的所有内存页面均由<code>Page</code>对象表示。<code>BufferPoolManager</code>不需要了解这些页面的内容。 但是，作为系统开发人员，重要的是要了解Page对象只是缓冲池中用于存储内存的容器，因此并不特定于唯一页面。 也就是说，每个<code>Page</code>对象都包含一块内存，<code>DiskManager</code>会将其用作复制从磁盘读取的物理页面内容的位置。 <code>BufferPoolManager</code>将在将其来回移动到磁盘时重用相同的<code>Page</code>对象来存储数据。 这意味着在系统的整个生命周期中，相同的<code>Page</code>对象可能包含不同的物理页面。<code>Page</code>对象的标识符（<code>page_id</code>）跟踪其包含的物理页面。 如果<code>Page</code>对象不包含物理页面，则必须将其<code>page_id</code>设置为<code>INVALID_PAGE_ID</code>。</p>
+<p>每个<code>Page</code>对象还维护一个计数器，以显示“固定”该页面的线程数。<code>BufferPoolManager</code>不允许释放固定的页面。每个<code>Page</code>对象还跟踪它的脏标记。您的工作是判断页面在解绑定之前是否已经被修改（修改则把脏标记置为1）。<code>BufferPoolManager</code>必须将脏页的内容写回磁盘，然后才能重用该对象。</p>
+<p><code>BufferPoolManager</code>实现将使用在此分配的前面步骤中创建的<code>LRUReplacer</code>类。它将使用<code>LRUReplacer</code>来跟踪何时访问页对象，以便在必须释放一个帧以为从磁盘复制新的物理页腾出空间时，它可以决定取消哪个页对象</p>
+<p>你需要实现在(src&#x2F;buffer&#x2F;buffer_pool_manager.cpp):的以下函数</p>
+<ul>
+<li><code>FetchPageImpl(page_id)</code></li>
+<li><code>NewPageImpl(page_id)</code></li>
+<li><code>UnpinPageImpl(page_id, is_dirty)</code></li>
+<li><code>FlushPageImpl(page_id)</code></li>
+<li><code>DeletePageImpl(page_id)</code></li>
+<li><code>FlushAllPagesImpl()</code></li>
+</ul>
+<h2 id="1-BufferPool实现"><a href="#1-BufferPool实现" class="headerlink" title="1. BufferPool实现"></a>1. BufferPool实现</h2><h3 id="1-1-基本数据结构-1"><a href="#1-1-基本数据结构-1" class="headerlink" title="1.1 基本数据结构"></a>1.1 基本数据结构</h3><ul>
+<li><code>pool_size_</code>表示缓冲池的最大容量。</li>
+<li><code>*pages_</code>指向缓冲池中page数组，用<code>pages_ = new Page[pool_size_]</code>来初始化。</li>
+<li><code>page_table_</code>是页表，page_id标识磁盘页，页表记录了该page在磁盘中的page_id和对应缓冲池中的frame_id。</li>
+<li><code>free_list</code>里面存的是frame_id，具体来说就是还没有被分配的缓冲池的数组项</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="comment">/** Number of pages in the buffer pool. */</span></span><br><span class="line"><span class="type">size_t</span> pool_size_;</span><br><span class="line"><span class="comment">/** Array of buffer pool pages. */</span></span><br><span class="line">Page *pages_;</span><br><span class="line"><span class="comment">/** Page table for keeping track of buffer pool pages. */</span></span><br><span class="line">std::unordered_map&lt;<span class="type">page_id_t</span>, <span class="type">frame_id_t</span>&gt; page_table_;</span><br><span class="line"><span class="comment">/** List of free pages. */</span></span><br><span class="line">std::list&lt;<span class="type">frame_id_t</span>&gt; free_list_;</span><br></pre></td></tr></table></figure>
+<h3 id="1-2-UpdatePage函数实现"><a href="#1-2-UpdatePage函数实现" class="headerlink" title="1.2 UpdatePage函数实现"></a>1.2 UpdatePage函数实现</h3><ul>
+<li>这是一个辅助函数，目的是更新页表中的数据。</li>
+<li>如果是脏页，需要先将数据写回磁盘。</li>
+<li>如果不是脏页，更新页表中的id。</li>
+<li>最后清空该页，更新id。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">BufferPoolManager::UpdatePage</span><span class="params">(Page *page, <span class="type">page_id_t</span> new_page_id, <span class="type">frame_id_t</span> new_frame_id)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (page-&gt;<span class="built_in">IsDirty</span>()) &#123;</span><br><span class="line">    disk_manager_-&gt;<span class="built_in">WritePage</span>(page-&gt;page_id_, page-&gt;data_);</span><br><span class="line">    page-&gt;is_dirty_ = <span class="literal">false</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Put the new page in page table.</span></span><br><span class="line">  page_table_.<span class="built_in">erase</span>(page-&gt;page_id_);</span><br><span class="line">  <span class="keyword">if</span> (new_page_id != INVALID_PAGE_ID) &#123;</span><br><span class="line">    page_table_.<span class="built_in">emplace</span>(new_page_id, new_frame_id);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Make the page data empty.</span></span><br><span class="line">  page-&gt;<span class="built_in">ResetMemory</span>();</span><br><span class="line">  page-&gt;page_id_ = new_page_id;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="1-2-FindVictimPage函数实现"><a href="#1-2-FindVictimPage函数实现" class="headerlink" title="1.2 FindVictimPage函数实现"></a>1.2 FindVictimPage函数实现</h3><ul>
+<li>这是一个辅助函数，目的是找到牺牲页。</li>
+<li>如果<code>free_list_</code>不满，意味着buffer pool还有空位，找到<code>frame_id</code>。</li>
+<li>如果缓冲池已满，调用LRU算法找牺牲页。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">bool</span> <span class="title">BufferPoolManager::FindVictimPage</span><span class="params">(<span class="type">frame_id_t</span> *frame_id)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// Buffer pool is not full. Get the frame id from free_list.</span></span><br><span class="line">  <span class="keyword">if</span> (!free_list_.<span class="built_in">empty</span>()) &#123;</span><br><span class="line">    *frame_id = free_list_.<span class="built_in">front</span>();</span><br><span class="line">    free_list_.<span class="built_in">pop_front</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// Buffer pool is full. Use LRU algorithm.</span></span><br><span class="line">  <span class="keyword">return</span> replacer_-&gt;<span class="built_in">Victim</span>(frame_id);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="1-4-FetchPageImpl函数实现"><a href="#1-4-FetchPageImpl函数实现" class="headerlink" title="1.4 FetchPageImpl函数实现"></a>1.4 FetchPageImpl函数实现</h3><blockquote>
+注意这里必须要加锁，以防止并发错误。
+</blockquote>
+
+
+<ul>
+<li>如果能在<code>page_table_</code>页表中找到该页，调用<code>replacer</code>将其pin出。</li>
+<li>如果找不到，说明该page不在缓冲池中，而在磁盘中，调用<code>FindVictimPage</code>在缓冲池中找到<code>frame</code>。</li>
+<li>通过<code>frame_id</code>找到相应的<code>page</code>，更新数据，别忘了pin住该页。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function">Page *<span class="title">BufferPoolManager::FetchPageImpl</span><span class="params">(<span class="type">page_id_t</span> page_id)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 1.     Search the page table for the requested page (P).</span></span><br><span class="line">  <span class="comment">// 1.1    If P exists, pin it and return it immediately.</span></span><br><span class="line">  <span class="comment">// 1.2    If P does not exist, find a replacement page (R) from either the free list or the replacer.</span></span><br><span class="line">  <span class="comment">//        Note that pages are always found from the free list first.</span></span><br><span class="line">  <span class="comment">// 2.     If R is dirty, write it back to the disk.</span></span><br><span class="line">  <span class="comment">// 3.     Delete R from the page table and insert P.</span></span><br><span class="line">  <span class="comment">// 4.     Update P&#x27;s metadata, read in the page content from disk, and then return a pointer to P.</span></span><br><span class="line">  std::scoped_lock lock&#123;latch_&#125;;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">auto</span> iter = page_table_.<span class="built_in">find</span>(page_id);</span><br><span class="line">  <span class="keyword">if</span> (iter != page_table_.<span class="built_in">end</span>()) &#123;</span><br><span class="line">    <span class="comment">// Find the frame id through page table.</span></span><br><span class="line">    <span class="type">frame_id_t</span> frame_id = iter-&gt;second;</span><br><span class="line">    Page *page = &amp;pages_[frame_id];</span><br><span class="line">    <span class="comment">// Pin it and and record it in pin count.</span></span><br><span class="line">    replacer_-&gt;<span class="built_in">Pin</span>(frame_id);</span><br><span class="line">    page-&gt;pin_count_++;</span><br><span class="line">    <span class="keyword">return</span> page;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Cannot find. It means that this page is in the disk.</span></span><br><span class="line">  <span class="type">frame_id_t</span> frame_id = <span class="number">-1</span>;</span><br><span class="line">  <span class="comment">// Find the victim page and insert the disk page instead.</span></span><br><span class="line">  <span class="keyword">if</span> (!<span class="built_in">FindVictimPage</span>(&amp;frame_id)) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nullptr</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Find the page and get the frame id.</span></span><br><span class="line">  Page *page = &amp;pages_[frame_id];</span><br><span class="line">  <span class="built_in">UpdatePage</span>(page, page_id, frame_id);</span><br><span class="line">  disk_manager_-&gt;<span class="built_in">ReadPage</span>(page_id, page-&gt;data_);</span><br><span class="line">  <span class="comment">// pin it</span></span><br><span class="line">  replacer_-&gt;<span class="built_in">Pin</span>(frame_id);</span><br><span class="line">  page-&gt;pin_count_ = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> page;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-5-UnpinPageImpl函数实现"><a href="#1-5-UnpinPageImpl函数实现" class="headerlink" title="1.5 UnpinPageImpl函数实现"></a>1.5 UnpinPageImpl函数实现</h3><blockquote>
+注意这里必须要加锁，以防止并发错误。
+</blockquote>
+
+
+<ul>
+<li>如果我们这个进程已经完成了对该页的操作。我们需要unpin。</li>
+<li>如果该page在缓冲池中，将<code>pin_count</code>减一，如果<code>pin_count</code>为0，unpin该页.</li>
+<li>标注该页为dirty。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">bool</span> <span class="title">BufferPoolManager::UnpinPageImpl</span><span class="params">(<span class="type">page_id_t</span> page_id, <span class="type">bool</span> is_dirty)</span> </span>&#123;</span><br><span class="line">  std::scoped_lock lock&#123;latch_&#125;;</span><br><span class="line">  <span class="keyword">auto</span> iter = page_table_.<span class="built_in">find</span>(page_id);</span><br><span class="line">  <span class="comment">// Cannot find the page in buffer pool.</span></span><br><span class="line">  <span class="keyword">if</span> (iter == page_table_.<span class="built_in">end</span>()) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// Find the page.</span></span><br><span class="line">  <span class="type">frame_id_t</span> frame_id = iter-&gt;second;</span><br><span class="line">  Page *page = &amp;pages_[frame_id];</span><br><span class="line">  <span class="comment">// Check pin count.</span></span><br><span class="line">  <span class="keyword">if</span> (page-&gt;pin_count_ == <span class="number">0</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// Do unpin.</span></span><br><span class="line">  page-&gt;pin_count_--;</span><br><span class="line">  <span class="keyword">if</span> (page-&gt;pin_count_ == <span class="number">0</span>) &#123;</span><br><span class="line">    replacer_-&gt;<span class="built_in">Unpin</span>(frame_id);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (is_dirty) &#123;</span><br><span class="line">    page-&gt;is_dirty_ = <span class="literal">true</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-6-FlushPageImpl函数实现"><a href="#1-6-FlushPageImpl函数实现" class="headerlink" title="1.6 FlushPageImpl函数实现"></a>1.6 FlushPageImpl函数实现</h3><blockquote>
+注意这里必须要加锁，以防止并发错误。
+</blockquote>
+
+
+<ul>
+<li>这个函数是要把一个page写入磁盘。</li>
+<li>在缓冲中找到该页，调用<code>WritePage</code>，并标记该页非脏。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">bool</span> <span class="title">BufferPoolManager::FlushPageImpl</span><span class="params">(<span class="type">page_id_t</span> page_id)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// Make sure you call DiskManager::WritePage!</span></span><br><span class="line">  std::scoped_lock lock&#123;latch_&#125;;</span><br><span class="line">  <span class="keyword">auto</span> iter = page_table_.<span class="built_in">find</span>(page_id);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (iter == page_table_.<span class="built_in">end</span>()) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="type">frame_id_t</span> frame_id = iter-&gt;second;</span><br><span class="line">  Page *page = &amp;pages_[frame_id];</span><br><span class="line">  <span class="comment">// Write the dirty page into disk.</span></span><br><span class="line">  disk_manager_-&gt;<span class="built_in">WritePage</span>(page-&gt;page_id_, page-&gt;data_);</span><br><span class="line">  page-&gt;is_dirty_ = <span class="literal">false</span>;</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-7-NewPageImpl函数实现"><a href="#1-7-NewPageImpl函数实现" class="headerlink" title="1.7 NewPageImpl函数实现"></a>1.7 NewPageImpl函数实现</h3><blockquote>
+注意这里必须要加锁，以防止并发错误。
+</blockquote>
+
+
+<ul>
+<li>这个函数是要从<code>DiskManager</code>中分配一个新页到缓冲池。</li>
+<li>在缓冲中找不到位置，且没有牺牲页，返回空指针。</li>
+<li>找到<code>frame_id</code>， 更新数据，pin住该页。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function">Page *<span class="title">BufferPoolManager::NewPageImpl</span><span class="params">(<span class="type">page_id_t</span> *page_id)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 0.   Make sure you call DiskManager::AllocatePage!</span></span><br><span class="line">  <span class="comment">// 1.   If all the pages in the buffer pool are pinned, return nullptr.</span></span><br><span class="line">  <span class="comment">// 2.   Pick a victim page P from either the free list or the replacer. Always pick from the free list first.</span></span><br><span class="line">  <span class="comment">// 3.   Update P&#x27;s metadata, zero out memory and add P to the page table.</span></span><br><span class="line">  <span class="comment">// 4.   Set the page ID output parameter. Return a pointer to P.</span></span><br><span class="line">  std::scoped_lock lock&#123;latch_&#125;;</span><br><span class="line"></span><br><span class="line">  <span class="type">frame_id_t</span> frame_id = <span class="number">-1</span>;</span><br><span class="line">  <span class="keyword">if</span> (!<span class="built_in">FindVictimPage</span>(&amp;frame_id)) &#123;  <span class="comment">// Delete page in free list.</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nullptr</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// Get the frame id.</span></span><br><span class="line">  *page_id = disk_manager_-&gt;<span class="built_in">AllocatePage</span>();</span><br><span class="line">  Page *page = &amp;pages_[frame_id];</span><br><span class="line">  <span class="comment">// Update and pin page.</span></span><br><span class="line">  <span class="built_in">UpdatePage</span>(page, *page_id, frame_id);</span><br><span class="line">  replacer_-&gt;<span class="built_in">Pin</span>(frame_id);</span><br><span class="line">  page-&gt;pin_count_ = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> page;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-8-DeletePageImpl函数实现"><a href="#1-8-DeletePageImpl函数实现" class="headerlink" title="1.8 DeletePageImpl函数实现"></a>1.8 DeletePageImpl函数实现</h3><blockquote>
+注意这里必须要加锁，以防止并发错误。
+</blockquote>
+
+
+<ul>
+<li>这里是删除缓冲池中的page。</li>
+<li>在缓冲中找不到该page，返回true。</li>
+<li>找到<code>frame_id</code>，若不是pin状态，删除该页。</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">bool</span> <span class="title">BufferPoolManager::DeletePageImpl</span><span class="params">(<span class="type">page_id_t</span> page_id)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 0.   Make sure you call DiskManager::DeallocatePage!</span></span><br><span class="line">  <span class="comment">// 1.   Search the page table for the requested page (P).</span></span><br><span class="line">  <span class="comment">// 1.   If P does not exist, return true.</span></span><br><span class="line">  <span class="comment">// 2.   If P exists, but has a non-zero pin-count, return false. Someone is using the page.</span></span><br><span class="line">  <span class="comment">// 3.   Otherwise, P can be deleted. Remove P from the page table, reset its metadata and return it to the free list.</span></span><br><span class="line">  std::scoped_lock lock&#123;latch_&#125;;</span><br><span class="line">  <span class="comment">// Cannot find the page.</span></span><br><span class="line">  <span class="keyword">auto</span> iter = page_table_.<span class="built_in">find</span>(page_id);</span><br><span class="line">  <span class="keyword">if</span> (iter == page_table_.<span class="built_in">end</span>()) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// Get the frame id.</span></span><br><span class="line">  <span class="type">frame_id_t</span> frame_id = iter-&gt;second;</span><br><span class="line">  Page *page = &amp;pages_[frame_id];</span><br><span class="line">  <span class="comment">// Canot delete pin page.</span></span><br><span class="line">  <span class="keyword">if</span> (page-&gt;pin_count_ != <span class="number">0</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  disk_manager_-&gt;<span class="built_in">DeallocatePage</span>(page_id);</span><br><span class="line">  <span class="built_in">UpdatePage</span>(page, INVALID_PAGE_ID, frame_id);</span><br><span class="line">  free_list_.<span class="built_in">push_back</span>(frame_id);</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-9-Test"><a href="#1-9-Test" class="headerlink" title="1.9 Test"></a>1.9 Test</h3><ul>
+<li><strong>检测语法及格式</strong></li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ <span class="built_in">cd</span> build</span><br><span class="line">$ make format</span><br><span class="line">$ make check-lint</span><br><span class="line">$ make check-clang-tidy</span><br><span class="line">$ make buffer_pool_manager_test</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>测试</strong></li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ ./test/buffer_pool_manager_test </span><br><span class="line">Running main() from gmock_main.cc</span><br><span class="line">[==========] Running 2 tests from 1 <span class="built_in">test</span> suite.</span><br><span class="line">[----------] Global <span class="built_in">test</span> environment set-up.</span><br><span class="line">[----------] 2 tests from BufferPoolManagerTest</span><br><span class="line">[ RUN      ] BufferPoolManagerTest.BinaryDataTest</span><br><span class="line">[       OK ] BufferPoolManagerTest.BinaryDataTest (0 ms)</span><br><span class="line">[ RUN      ] BufferPoolManagerTest.SampleTest</span><br><span class="line">[       OK ] BufferPoolManagerTest.SampleTest (0 ms)</span><br><span class="line">[----------] 2 tests from BufferPoolManagerTest (1 ms total)</span><br><span class="line"></span><br><span class="line">[----------] Global <span class="built_in">test</span> environment tear-down</span><br><span class="line">[==========] 2 tests from 1 <span class="built_in">test</span> suite ran. (1 ms total)</span><br><span class="line">[  PASSED  ] 2 tests.</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>gradescope测试</strong></li>
+</ul>
+<img src="/2022/08/29/lab1/grade.png" class="">]]></content>
+      <categories>
+        <category>CMU15-445</category>
+      </categories>
+      <tags>
+        <tag>LRU算法</tag>
+        <tag>Buffer Pool</tag>
+        <tag>数据库存储</tag>
+        <tag>Algorithm</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Count Partitions(整数划分)</title>
+    <url>/2022/08/29/count-partition/</url>
+    <content><![CDATA[<h1 id="问题描述："><a href="#问题描述：" class="headerlink" title="问题描述："></a><strong>问题描述：</strong></h1><img src="/2022/08/29/count-partition/par.png" class="">
+<span id="more"></span>
+<h1 id="思路："><a href="#思路：" class="headerlink" title="思路："></a><strong>思路：</strong></h1><h2 id="基本情况（Base-case）"><a href="#基本情况（Base-case）" class="headerlink" title="基本情况（Base case）"></a>基本情况（Base case）</h2><ul>
+<li><strong>当n &#x3D; 0时， 仅有 0 &#x3D; 0一种划分，返回1</strong></li>
+<li><strong>当n &lt; 0时， 递归过界，返回0</strong></li>
+<li><strong>当k &#x3D; 0时， 无法划分，返回0</strong></li>
+</ul>
+<h2 id="递推方法-Recursive-calls"><a href="#递推方法-Recursive-calls" class="headerlink" title="递推方法(Recursive calls)"></a><strong>递推方法(Recursive calls)</strong></h2><ul>
+<li><strong>Q(n,m)&#x3D;Q(n,m-1)+Q(n-m,m)</strong><br> 等式右边第一部分Q(n,m-1)表示被加数不包含m的分划的数目，第二部分表示被加数中包含（注意不是小于）m的分划的数目，因为如果确定了一个分划的被加数中包含m,则剩下的部分就是对n-m进行不超过m的划分。</li>
+</ul>
+<h1 id="代码如下："><a href="#代码如下：" class="headerlink" title="代码如下："></a><strong>代码如下：</strong></h1><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">count_partitions</span>(<span class="params">n, k</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    &gt;&gt;&gt; count_partitions(5, 3)</span></span><br><span class="line"><span class="string">    5</span></span><br><span class="line"><span class="string">    &gt;&gt;&gt; count_partitions(6, 4)</span></span><br><span class="line"><span class="string">    9</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">if</span> n == <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span></span><br><span class="line">    <span class="keyword">elif</span> n &lt; <span class="number">0</span> <span class="keyword">or</span> k == <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">return</span> count_partitions(n , k - <span class="number">1</span>) + count_partitions(n - k, k)</span><br></pre></td></tr></table></figure>
+
+<h2 id="测试："><a href="#测试：" class="headerlink" title="测试："></a>测试：</h2><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ python3 -m doctest count_partiton.py -v</span><br><span class="line">Trying:</span><br><span class="line">    count_partitions(5, 3)</span><br><span class="line">Expecting:</span><br><span class="line">    5</span><br><span class="line">ok</span><br><span class="line">Trying:</span><br><span class="line">    count_partitions(6, 4)</span><br><span class="line">Expecting:</span><br><span class="line">    9</span><br><span class="line">ok</span><br><span class="line">1 items had no tests:</span><br><span class="line">    count_partiton</span><br><span class="line">1 items passed all tests:</span><br><span class="line">   2 tests <span class="keyword">in</span> count_partiton.count_partitions</span><br><span class="line">2 tests <span class="keyword">in</span> 2 items.</span><br><span class="line">2 passed and 0 failed.</span><br><span class="line">Test passed.</span><br></pre></td></tr></table></figure>
+
+<h1 id="递归树："><a href="#递归树：" class="headerlink" title="递归树："></a>递归树：</h1><img src="/2022/08/29/count-partition/tree.png" class="">]]></content>
+      <categories>
+        <category>CS基础知识</category>
+      </categories>
+  </entry>
+</search>
