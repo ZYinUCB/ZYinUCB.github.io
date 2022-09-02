@@ -9,7 +9,60 @@
     overflow-x: auto;
 }
 </style> -->
-]]></content>
+<h1 id="Task1-B-TREE-PAGES"><a href="#Task1-B-TREE-PAGES" class="headerlink" title="Task1 - B+TREE PAGES"></a>Task1 - B+TREE PAGES</h1><p>您需要实现三个页面类来存储B+树的数据。</p>
+<ul>
+<li>B+Tree Parent Page</li>
+<li>B+Tree Internal Page</li>
+<li>B+Tree Leaf Page</li>
+</ul>
+<span id="more"></span>
+
+<h2 id="1-B-Tree-Parent-Page"><a href="#1-B-Tree-Parent-Page" class="headerlink" title="1. B+ Tree Parent Page"></a>1. B+ Tree Parent Page</h2><p>这是内部页和叶页都继承的父类，它只包含两个子类共享的信息。父页面被划分为如下表所示的几个字段。</p>
+<ul>
+<li>B+Tree Parent Page Content</li>
+</ul>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Variable Name</th>
+<th>Size</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>page_type_</td>
+<td>4</td>
+<td>Page Type (internal or leaf)</td>
+</tr>
+<tr>
+<td>lsn_</td>
+<td>4</td>
+<td>Log sequence number (Used in Project 4)</td>
+</tr>
+<tr>
+<td>size_</td>
+<td>4</td>
+<td>Number of Key &amp; Value pairs in page</td>
+</tr>
+<tr>
+<td>max_size_</td>
+<td>4</td>
+<td>Max number of Key &amp; Value pairs in page</td>
+</tr>
+<tr>
+<td>parent_page_id_</td>
+<td>4</td>
+<td>Parent Page Id</td>
+</tr>
+<tr>
+<td>page_id_</td>
+<td>4</td>
+<td>Self Page Id</td>
+</tr>
+</tbody>
+</table></div>
+你必须在指定文件中实现父页。你只允许修改头文件(src/include/storage/page/b_plus_tree_page.h)和它对应的源文件(src/page/b_plus_tree_page.cpp)。]]></content>
   </entry>
   <entry>
     <title>CMU15-445 lab01</title>
