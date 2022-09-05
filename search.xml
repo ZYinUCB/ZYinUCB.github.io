@@ -73,9 +73,10 @@
 <h2 id="2-B-TREE-INTERNAL-PAGE"><a href="#2-B-TREE-INTERNAL-PAGE" class="headerlink" title="2. B+TREE INTERNAL PAGE"></a>2. B+TREE INTERNAL PAGE</h2><p>内部页不存储任何实际数据，而是存储有序的m个键条目和m + 1个指针（也称为page_id）。 由于指针的数量不等于键的数量，因此将第一个键设置为无效，并且查找方法应始终从第二个键开始。 任何时候，每个内部页面至少有一半已满。 在删除期间，可以将两个半满页面合并为合法页面，或者可以将其重新分配以避免合并，而在插入期间，可以将一个完整页面分为两部分。</p>
 <p>你只能修改头文件(src&#x2F;include&#x2F;storage&#x2F;page&#x2F;b_plus_tree_internal_page.h) 和对应的源文件(src&#x2F;page&#x2F;b_plus_tree_internal_page.cpp).</p>
 <ul>
-<li>如图所示，第一个node被设置为无效。</li>
+<li>如图所示，第一个node被设置为无效, 没有key值。</li>
 </ul>
-<p><img src="https://pic2.zhimg.com/v2-e48afd86cba1a3a7122d99711fb1bb75_r.jpg"></p>
+<img src="/2022/09/02/lab2/t1.jpg" class="">
+
 <h3 id="2-1-类初始化"><a href="#2-1-类初始化" class="headerlink" title="2.1 类初始化"></a>2.1 类初始化</h3><figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function">INDEX_TEMPLATE_ARGUMENTS</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init</span><span class="params">(<span class="type">page_id_t</span> page_id, <span class="type">page_id_t</span> parent_id, <span class="type">int</span> max_size)</span> </span>&#123;</span><br><span class="line">  <span class="built_in">SetPageType</span>(IndexPageType::INTERNAL_PAGE);</span><br><span class="line">  <span class="built_in">SetPageId</span>(page_id);</span><br><span class="line">  <span class="built_in">SetParentPageId</span>(parent_id);</span><br><span class="line">  <span class="built_in">SetSize</span>(<span class="number">0</span>);</span><br><span class="line">  <span class="built_in">SetMaxSize</span>(max_size);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h3 id="2-2-基本的数组内部函数"><a href="#2-2-基本的数组内部函数" class="headerlink" title="2.2 基本的数组内部函数"></a>2.2 基本的数组内部函数</h3><ul>
@@ -89,7 +90,7 @@
 <li>这里是让我们查找并返回指向子页面的子指针(page_id)，该页面包含输入“key”。</li>
 <li>从第二个键开始搜索(第一个键是无效的)</li>
 <li>注意到<code>K(i) &lt;= K &lt; K(i+1)</code>，只需查找小于等于input的最后一个key即可。</li>
-<li>这里用y总的<a href="https://www.acwing.com/problem/content/791/">整数二分模板</a>，且要注意key比array中所有key都要小的情况。</li>
+<li>这里用y总的<font color=blue><a href="https://www.acwing.com/problem/content/791/">整数二分模板</a></font>，且要注意key比array中所有key都要小的情况。</li>
 </ul>
 <figure class="highlight cpp"><table><tr><td class="code"><pre><span class="line"><span class="function">INDEX_TEMPLATE_ARGUMENTS</span></span><br><span class="line"><span class="function">ValueType <span class="title">B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup</span><span class="params">(<span class="type">const</span> KeyType &amp;key, <span class="type">const</span> KeyComparator &amp;comparator)</span> <span class="type">const</span> </span>&#123;</span><br><span class="line">  <span class="type">int</span> l = <span class="number">1</span>;</span><br><span class="line">  <span class="type">int</span> r = <span class="built_in">GetSize</span>() - <span class="number">1</span>;</span><br><span class="line">  <span class="keyword">while</span> (l &lt; r) &#123;</span><br><span class="line">    <span class="type">int</span> mid = (l + r + <span class="number">1</span>) &gt;&gt; <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">comparator</span>(<span class="built_in">KeyAt</span>(mid), key) &lt;= <span class="number">0</span>) &#123;</span><br><span class="line">      l = mid;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      r = mid - <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (<span class="built_in">comparator</span>(<span class="built_in">KeyAt</span>(l), key) &gt; <span class="number">0</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> array[<span class="number">0</span>].second; <span class="comment">// Cannot find satisdied key. The key is smaller than any valid key.</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">ValueAt</span>(r);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -97,6 +98,14 @@
 <li><strong>Gradescope测试</strong></li>
 </ul>
 <img src="/2022/09/02/lab2/grade.jpg" class="">]]></content>
+      <categories>
+        <category>CMU15-445</category>
+      </categories>
+      <tags>
+        <tag>数据库存储</tag>
+        <tag>Algorithm</tag>
+        <tag>B+ Tree</tag>
+      </tags>
   </entry>
   <entry>
     <title>CMU15-445 lab01</title>
