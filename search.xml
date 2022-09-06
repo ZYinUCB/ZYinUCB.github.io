@@ -3,10 +3,15 @@
   <entry>
     <title>CMU15-445 lab02(Part 2)</title>
     <url>/2022/09/06/lab2-2/</url>
-    <content><![CDATA[<h3 id="Test"><a href="#Test" class="headerlink" title="Test"></a>Test</h3><ul>
+    <content><![CDATA[<h3 id="1-B-TREE-LEAF-PAGE"><a href="#1-B-TREE-LEAF-PAGE" class="headerlink" title="1. B+TREE LEAF PAGE"></a>1. B+TREE LEAF PAGE</h3><p>Leaf Page存储一个有序的m键条目和m值条目。在你的实现中，值应该仅为64位的record_id，用于定位实际元组存储的位置，参见在src&#x2F;include&#x2F;common&#x2F;RID.h下定义的RID类。叶子页与内部页在键&#x2F;值对的数量上有相同的限制，并且应该遵循相同的合并、重分发和拆分操作。</p>
+<p>必须在指定文件中实现内页。只允许修改头文件(src&#x2F;include&#x2F;storage&#x2F;page&#x2F;b_plus_tree_leaf_page.h)及其对应的源文件。</p>
+<p>要点:即使叶子页和内部页包含相同类型的键，它们也可能有不同类型的值，因此叶子页和内部页的max_size可能不同。</p>
+<span id="more"></span>
+
+<h3 id="Test"><a href="#Test" class="headerlink" title="Test"></a>Test</h3><ul>
 <li><strong>Gradescope测试</strong></li>
 </ul>
-]]></content>
+<img src="/2022/09/06/lab2-2/grade.jpg" class="">]]></content>
       <categories>
         <category>CMU15-445</category>
       </categories>
