@@ -6,7 +6,7 @@
   <link href="http://zyyyyy.com/atom.xml" rel="self"/>
   
   <link href="http://zyyyyy.com/"/>
-  <updated>2022-09-06T09:46:12.163Z</updated>
+  <updated>2022-09-06T09:46:41.603Z</updated>
   <id>http://zyyyyy.com/</id>
   
   <author>
@@ -17,11 +17,11 @@
   <generator uri="https://hexo.io/">Hexo</generator>
   
   <entry>
-    <title>lab2.2</title>
+    <title>CMU15-445 lab02(Part 2)</title>
     <link href="http://zyyyyy.com/2022/09/06/lab2-2/"/>
     <id>http://zyyyyy.com/2022/09/06/lab2-2/</id>
     <published>2022-09-06T09:45:13.000Z</published>
-    <updated>2022-09-06T09:46:12.163Z</updated>
+    <updated>2022-09-06T09:46:41.603Z</updated>
     
     <content type="html"><![CDATA[<h3 id="Test"><a href="#Test" class="headerlink" title="Test"></a>Test</h3><ul><li><strong>Gradescope测试</strong></li></ul>]]></content>
     
