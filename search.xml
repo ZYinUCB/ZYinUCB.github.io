@@ -20,7 +20,6 @@
       </categories>
       <tags>
         <tag>数据库存储</tag>
-        <tag>Algorithm</tag>
         <tag>B+ Tree</tag>
       </tags>
   </entry>
@@ -141,7 +140,6 @@ blockquote {
       </categories>
       <tags>
         <tag>数据库存储</tag>
-        <tag>Algorithm</tag>
         <tag>B+ Tree</tag>
       </tags>
   </entry>
@@ -199,7 +197,6 @@ blockquote {
       </categories>
       <tags>
         <tag>数据库存储</tag>
-        <tag>Algorithm</tag>
         <tag>B+ Tree</tag>
       </tags>
   </entry>
@@ -340,7 +337,6 @@ blockquote {
       </categories>
       <tags>
         <tag>数据库存储</tag>
-        <tag>Algorithm</tag>
         <tag>B+ Tree</tag>
       </tags>
   </entry>
@@ -537,7 +533,6 @@ LRU 算法的设计原则是：如果一个数据在最近一段时间没有被�
         <tag>LRU算法</tag>
         <tag>Buffer Pool</tag>
         <tag>数据库存储</tag>
-        <tag>Algorithm</tag>
       </tags>
   </entry>
   <entry>
@@ -561,5 +556,8 @@ LRU 算法的设计原则是：如果一个数据在最近一段时间没有被�
       <categories>
         <category>CS基础知识</category>
       </categories>
+      <tags>
+        <tag>递归算法</tag>
+      </tags>
   </entry>
 </search>
