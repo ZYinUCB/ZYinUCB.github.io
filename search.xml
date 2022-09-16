@@ -109,7 +109,7 @@ blockquote {
 <figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ ./test/b_plus_tree_insert_test </span><br><span class="line">Running main() from gmock_main.cc</span><br><span class="line">[==========] Running 2 tests from 1 <span class="built_in">test</span> suite.</span><br><span class="line">[----------] Global <span class="built_in">test</span> environment set-up.</span><br><span class="line">[----------] 2 tests from BPlusTreeTests</span><br><span class="line">[ RUN      ] BPlusTreeTests.InsertTest1</span><br><span class="line">[       OK ] BPlusTreeTests.InsertTest1 (1 ms)</span><br><span class="line">[ RUN      ] BPlusTreeTests.InsertTest2</span><br><span class="line">[       OK ] BPlusTreeTests.InsertTest2 (0 ms)</span><br><span class="line">[----------] 2 tests from BPlusTreeTests (1 ms total)</span><br><span class="line"></span><br><span class="line">[----------] Global <span class="built_in">test</span> environment tear-down</span><br><span class="line">[==========] 2 tests from 1 <span class="built_in">test</span> suite ran. (1 ms total)</span><br><span class="line">[  PASSED  ] 2 tests.</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li><strong>Gradescope测试</strong></li>
+<li>Gradescope测试</li>
 </ul>
 <img src="/2022/09/14/lab2-3/grade.jpg" class="">]]></content>
       <categories>
